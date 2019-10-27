@@ -9,27 +9,6 @@ import { SpectrumServer } from "./game";
 function main() {
 	let ews = expressWS(express());
 	let app = ews.app;
-	app.use(((err, req, res, next) => {
-		let errData;
-		if (err instanceof Error) {
-			errData = {
-				error: err.message,
-				stack: err.stack,
-			};
-		} else if (_.isObject(err)) {
-			errData = {
-				error: util.inspect(err),
-			};
-		} else {
-			errData = {
-				error: err + "",
-			};
-		}
-
-		console.error("Request %s failed:", req, err);
-
-		res.status(http.INTERNAL_SERVER_ERROR).json(errData);
-	}) as express.ErrorRequestHandler);
 
 	// TODO save/load
 	let server = new SpectrumServer(SpectrumServer.createGame(7));
@@ -46,8 +25,8 @@ function main() {
 		console.log("Got a websocket connection!");
 		forwardEvent(ws, "heartbeat");
 		forwardEvent(ws, "gameOver");
-		forwardEvent(ws, "newPhase");
-		forwardEvent(ws, "editPhase");
+		forwardEvent(ws, "phaseChange");
+		server.emitHeartbeat();
 	});
 
 	app.get("/", (req, res) => {
@@ -75,11 +54,11 @@ function main() {
 		res.sendStatus(http.NO_CONTENT);
 	});
 	api.post("/setTerror", (req, res) => {
-		server.setTerror(parseInt(req.body.terror));
+		server.setTerror(req.body.amount);
 		res.sendStatus(http.NO_CONTENT);
 	});
 	api.post("/addTerror", (req, res) => {
-		server.setTerror(parseInt(req.body.amount));
+		server.addTerror(req.body.amount);
 		res.sendStatus(http.NO_CONTENT);
 	});
 	api.post("/newPhase", (req, res) => {
@@ -90,11 +69,11 @@ function main() {
 		res.status(http.OK).json(phase);
 	});
 	api.post("/editPhase", (req, res) => {
-		server.editPhase(
+		let phase = server.editPhase(
 			req.body.phaseID,
 			_.pick(req.body.phaseConfig, "label", "length"),
 		);
-		res.sendStatus(http.NO_CONTENT);
+		res.status(http.OK).json(phase);
 	});
 	api.post("/reorderTurnPhases", (req, res) => {
 		server.reorderTurnPhases(
@@ -115,6 +94,28 @@ function main() {
 		server.advancePhase();
 		res.sendStatus(http.NO_CONTENT);
 	});
+
+	app.use(((err, req, res, next) => {
+		let errData;
+		if (err instanceof Error) {
+			errData = {
+				error: err.message,
+				stack: err.stack,
+			};
+		} else if (_.isObject(err)) {
+			errData = {
+				error: util.inspect(err),
+			};
+		} else {
+			errData = {
+				error: err + "",
+			};
+		}
+
+		console.error("Request %s failed:", req, err);
+
+		res.status(http.INTERNAL_SERVER_ERROR).json(errData);
+	}) as express.ErrorRequestHandler);
 
 	console.log("Listening at localhost:8081");
 	app.listen(8081);

@@ -13,23 +13,19 @@ const MINUTES = 60 * 1000;
 const DEFAULT_PHASES: DefaultPhaseConfig[] = [
 	{
 		label: "Team Time",
-		// length: 10,
-		length: 0.1,
+		length: 10,
 	},
 	{
 		label: "Action Time",
-		// length: 15,
-		length: 0.15,
+		length: 15,
 	},
 	{
 		label: "Diplomacy Time",
-		// length: 10,
-		length: 0.1,
+		length: 10,
 	},
 	{
 		label: "Breaking News",
-		// length: 10,
-		length: 0.1,
+		length: 10,
 	},
 	{
 		label: "End of Turn",
@@ -207,6 +203,7 @@ export class SpectrumServer extends EventEmitter {
 			started: now,
 			ends: length ? now + length : Infinity,
 		};
+		this.emit("phaseChange", game.currentPhase);
 
 		if (game.paused) {
 			game.paused.timeLeft = length ? length : -1;
@@ -290,6 +287,10 @@ export class SpectrumServer extends EventEmitter {
 
 		game.terror = terror;
 		this.emitHeartbeat();
+		if (terror == 250) {
+			this.emit("gameOver");
+			game.over = true;
+		}
 	}
 
 	public addTerror(amount: number): void {
@@ -311,11 +312,13 @@ export class SpectrumServer extends EventEmitter {
 		let phase = SpectrumServer.createPhase(phaseConfig);
 		game.phases[phase.id] = phase;
 		turn.phases.push(phase.id);
-		this.emit("newPhase", _.pick(phase, "id", "label"));
 		return phase;
 	}
 
-	public editPhase(phaseID: string, phaseConfig: DefaultPhaseConfig): void {
+	public editPhase(
+		phaseID: string,
+		phaseConfig: DefaultPhaseConfig,
+	): PhaseConfig {
 		let game = this.game;
 		if (game.over) {
 			throw new Error("Game over man, game over!");
@@ -324,8 +327,30 @@ export class SpectrumServer extends EventEmitter {
 		if (!phase) {
 			throw new Error("Invalid phase!");
 		}
-		Object.assign(phase, phaseConfig);
-		this.emit("editPhase", _.pick(phase, "id", "label"));
+		phase.label = phaseConfig.label;
+		phase.length = phaseConfig.length ? phaseConfig.length * MINUTES : null;
+		if (
+			game.currentPhase &&
+			game.currentPhase.id == phase.id &&
+			game.currentPhase.length != phase.length
+		) {
+			let cp = game.currentPhase;
+			if (!phase.length) {
+				cp.ends = Infinity;
+			} else if (!cp.length) {
+				cp.ends = cp.started + phase.length;
+			} else {
+				cp.ends += phase.length - cp.length;
+			}
+			cp.length = phase.length;
+			// Update the timer on the client
+			this.emitHeartbeat();
+			// Check to see if we've just made the current phase so short it
+			//  should end immediately.
+			// This may emit another heartbeat but I don't care right now
+			this.tick();
+		}
+		return phase;
 	}
 
 	public reorderTurnPhases(turnID: string, phases: string[]): void {
