@@ -145,10 +145,10 @@ export class SpectrumServer extends EventEmitter {
 
 		let turn = game.turns[game.currentTurn || ""];
 		let phaseLabel = "";
-		if (game.currentPhase) {
-			phaseLabel = game.phases[game.currentPhase.id].label;
-		}
 		let phase = game.currentPhase;
+		if (phase) {
+			phaseLabel = game.phases[phase.id].label;
+		}
 		let beat: HeartbeatEvent = {
 			turn: turn ? turn.label : 0,
 			phase: phaseLabel,
@@ -370,7 +370,9 @@ export class SpectrumServer extends EventEmitter {
 		if (game.over) {
 			throw new Error("Game over man, game over!");
 		}
-		let [turn, phases] = SpectrumServer.createTurn(game.turnOrder.length);
+		let [turn, phases] = SpectrumServer.createTurn(
+			game.turnOrder.length + 1,
+		);
 		let id = turn.id;
 		game.turnOrder.push(id);
 		game.turns[id] = turn;
