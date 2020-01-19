@@ -27,6 +27,7 @@ function main() {
 		forwardEvent(sock, "heartbeat");
 		forwardEvent(sock, "gameOver");
 		forwardEvent(sock, "phaseChange");
+		forwardEvent(sock, "turnChange");
 		server.emitHeartbeat();
 	});
 

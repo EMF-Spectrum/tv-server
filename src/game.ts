@@ -145,6 +145,7 @@ export class SpectrumServer extends EventEmitter {
 		}
 
 		game.currentTurn = game.turnOrder[pos];
+		this.emit("turnChange", game.currentTurn);
 	}
 
 	private nextPhase(): void {
