@@ -15,17 +15,18 @@ function main() {
 	setInterval(() => server.emitHeartbeat(), 1000);
 	setInterval(() => server.tick(), 10);
 
-	function forwardEvent(ws: ws, type: string) {
-		let handler = (data: any) => ws.send(JSON.stringify({ type, data }));
+	function forwardEvent(sock: ws, type: string) {
+		let handler = (data: unknown) =>
+			sock.send(JSON.stringify({ type, data }));
 		server.on(type, handler);
-		ws.on("close", () => server.off(type, handler));
+		sock.on("close", () => server.off(type, handler));
 	}
 
-	app.ws("/socket", (ws) => {
+	app.ws("/socket", (sock) => {
 		console.log("Got a websocket connection!");
-		forwardEvent(ws, "heartbeat");
-		forwardEvent(ws, "gameOver");
-		forwardEvent(ws, "phaseChange");
+		forwardEvent(sock, "heartbeat");
+		forwardEvent(sock, "gameOver");
+		forwardEvent(sock, "phaseChange");
 		server.emitHeartbeat();
 	});
 
@@ -95,7 +96,7 @@ function main() {
 		res.sendStatus(http.NO_CONTENT);
 	});
 
-	app.use(((err, req, res, next) => {
+	app.use(((err, req, res, _next) => {
 		let errData;
 		if (err instanceof Error) {
 			errData = {
