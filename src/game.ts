@@ -1,15 +1,18 @@
+import {
+	APIPhase,
+	HeartbeatEvent,
+	PhaseConfig,
+	SavedGame,
+	TimerStatus,
+	TurnConfig,
+} from "@web/types/data";
 import { EventEmitter } from "events";
 import _ from "lodash";
 import uuid from "uuid/v4";
-import { HeartbeatEvent, TimerStatus, GamePhase } from "@web/types/data";
-
-interface DefaultPhaseConfig {
-	label: string;
-	length: number | null;
-}
 
 const MINUTES = 60 * 1000;
 
+type DefaultPhaseConfig = Omit<PhaseConfig, "id">;
 const DEFAULT_PHASES: DefaultPhaseConfig[] = [
 	{
 		label: "Team Time",
@@ -32,38 +35,6 @@ const DEFAULT_PHASES: DefaultPhaseConfig[] = [
 		length: null,
 	},
 ];
-
-interface PhaseConfig extends DefaultPhaseConfig {
-	id: string;
-}
-
-interface CurrentPhase {
-	id: string;
-	started: DOMTimeStamp;
-	ends: DOMTimeStamp;
-	length: null | number;
-}
-
-interface TurnConfig {
-	id: string;
-	label: number;
-	phases: string[];
-}
-
-interface SavedGame {
-	phases: {
-		[id: string]: PhaseConfig;
-	};
-	turns: {
-		[id: string]: TurnConfig;
-	};
-	turnOrder: string[];
-	currentPhase: CurrentPhase | null;
-	currentTurn: string | null;
-	paused: { timeLeft: DOMTimeStamp } | false;
-	terror: number;
-	over: boolean;
-}
 
 export class SpectrumServer extends EventEmitter {
 	constructor(private game: SavedGame) {
@@ -158,7 +129,7 @@ export class SpectrumServer extends EventEmitter {
 		this.emit("heartbeat", beat);
 	}
 
-	public getGamePhases(): GamePhase[] {
+	public getGamePhases(): APIPhase[] {
 		return _.map(this.game.phases, (p) => _.pick(p, "id", "label"));
 	}
 
