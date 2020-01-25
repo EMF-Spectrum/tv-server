@@ -300,7 +300,7 @@ export class SpectrumServer extends EventEmitter {
 			throw new Error("Invalid phase!");
 		}
 		phase.label = phaseConfig.label;
-		phase.length = phaseConfig.length ? phaseConfig.length * MINUTES : null;
+		phase.length = phaseConfig.length;
 		if (
 			game.currentPhase &&
 			game.currentPhase.id == phase.id &&
