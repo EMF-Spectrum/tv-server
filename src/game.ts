@@ -41,6 +41,10 @@ export class SpectrumServer extends EventEmitter {
 		super();
 	}
 
+	private findPhaseTurn(phaseID: string): TurnConfig | undefined {
+		return _.find(this.game.turns, (turn) => turn.phases.includes(phaseID));
+	}
+
 	private static createPhase(phase: DefaultPhaseConfig): PhaseConfig {
 		return {
 			id: uuid(),
@@ -272,7 +276,7 @@ export class SpectrumServer extends EventEmitter {
 	public newPhase(
 		turnID: string,
 		phaseConfig: DefaultPhaseConfig,
-	): PhaseConfig {
+	): [TurnConfig, PhaseConfig] {
 		let game = this.game;
 		if (game.over) {
 			throw new Error("Game over man, game over!");
@@ -284,7 +288,7 @@ export class SpectrumServer extends EventEmitter {
 		let phase = SpectrumServer.createPhase(phaseConfig);
 		game.phases[phase.id] = phase;
 		turn.phases.push(phase.id);
-		return phase;
+		return [turn, phase];
 	}
 
 	public editPhase(
@@ -325,7 +329,7 @@ export class SpectrumServer extends EventEmitter {
 		return phase;
 	}
 
-	public reorderTurnPhases(turnID: string, phases: string[]): void {
+	public reorderTurnPhases(turnID: string, phases: string[]): TurnConfig {
 		let game = this.game;
 		if (game.over) {
 			throw new Error("Game over man, game over!");
@@ -335,6 +339,38 @@ export class SpectrumServer extends EventEmitter {
 			throw new Error("Invalid turn!");
 		}
 		turn.phases = phases;
+		return turn;
+	}
+
+	public bumpPhase(phaseID: string, direction: string): TurnConfig {
+		let game = this.game;
+		if (game.over) {
+			throw new Error("Game over man, game over!");
+		} else if (direction != "up" && direction != "down") {
+			throw new Error("Invalid direction?");
+		} else if (!(phaseID in game.phases)) {
+			throw new Error("Unknown phase?");
+		}
+		let turn = this.findPhaseTurn(phaseID);
+		if (!turn) {
+			throw new Error("Phase is not attached to a turn??");
+		}
+		let idx = turn.phases.indexOf(phaseID);
+		if (
+			(idx == 0 && direction == "up") ||
+			(idx == turn.phases.length - 1 && direction == "down")
+		) {
+			console.log("NOPE");
+			// Don't move things past their movement point
+			return turn;
+		}
+		turn.phases.splice(idx, 1);
+		if (direction == "up") {
+			turn.phases.splice(idx - 1, 0, phaseID);
+		} else {
+			turn.phases.splice(idx + 1, 0, phaseID);
+		}
+		return turn;
 	}
 
 	public newTurn(): [TurnConfig, PhaseConfig[]] {
@@ -401,7 +437,7 @@ export class SpectrumServer extends EventEmitter {
 		} else if (!(phaseID in game.phases)) {
 			throw new Error("Unknown phase?");
 		}
-		let turn = _.find(game.turns, (turn) => turn.phases.includes(phaseID));
+		let turn = this.findPhaseTurn(phaseID);
 		if (!turn) {
 			throw new Error("Phase is not attached to a turn??");
 		}

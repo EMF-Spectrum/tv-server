@@ -64,11 +64,11 @@ function main() {
 		res.sendStatus(http.NO_CONTENT);
 	});
 	api.post("/newPhase", (req, res) => {
-		let phase = server.newPhase(
+		let [turn, phase] = server.newPhase(
 			req.body.turnID,
 			_.pick(req.body.phaseConfig, "label", "length"),
 		);
-		res.status(http.OK).json(phase);
+		res.status(http.OK).json({ turn, phase });
 	});
 	api.post("/editPhase", (req, res) => {
 		let phase = server.editPhase(
@@ -78,11 +78,15 @@ function main() {
 		res.status(http.OK).json(phase);
 	});
 	api.post("/reorderTurnPhases", (req, res) => {
-		server.reorderTurnPhases(
+		let turn = server.reorderTurnPhases(
 			req.body.turnID,
 			_.map(req.body.phases, _.toString),
 		);
-		res.sendStatus(http.NO_CONTENT);
+		res.status(http.OK).json(turn);
+	});
+	api.post("/bumpPhase", (req, res) => {
+		let turn = server.bumpPhase(req.body.phaseID, req.body.direction);
+		res.status(http.OK).json(turn);
 	});
 	api.post("/newTurn", (req, res) => {
 		let [turn, phases] = server.newTurn();
