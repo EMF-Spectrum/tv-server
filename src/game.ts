@@ -393,4 +393,39 @@ export class SpectrumServer extends EventEmitter {
 		}
 		this.nextPhase();
 	}
+
+	public setPhase(phaseID: string): void {
+		let game = this.game;
+		if (game.over) {
+			throw new Error("Game over man, game over!");
+		} else if (!(phaseID in game.phases)) {
+			throw new Error("Unknown phase?");
+		}
+		let turn = _.find(game.turns, (turn) => turn.phases.includes(phaseID));
+		if (!turn) {
+			throw new Error("Phase is not attached to a turn??");
+		}
+
+		if (turn.id != game.currentTurn) {
+			game.currentTurn = turn.id;
+			this.emit("turnChange", game.currentTurn);
+		}
+
+		let { length } = game.phases[phaseID];
+		let now = Date.now();
+
+		game.currentPhase = {
+			id: phaseID,
+			length,
+			started: now,
+			ends: length ? now + length : Infinity,
+		};
+		this.emit("phaseChange", game.currentPhase);
+
+		if (game.paused) {
+			game.paused.timeLeft = length ? length : -1;
+		}
+
+		this.emitHeartbeat();
+	}
 }

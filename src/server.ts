@@ -96,6 +96,10 @@ function main() {
 		server.advancePhase();
 		res.sendStatus(http.NO_CONTENT);
 	});
+	api.post("/setPhase", (req, res) => {
+		server.setPhase(req.body.phaseID);
+		res.sendStatus(http.NO_CONTENT);
+	});
 
 	app.use(((err, req, res, _next) => {
 		let errData;
