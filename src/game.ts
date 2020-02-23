@@ -41,6 +41,11 @@ export class SpectrumServer extends EventEmitter {
 		super();
 	}
 
+	public newGame(game: SavedGame) {
+		this.game = game;
+		this.emitHeartbeat();
+	}
+
 	private findPhaseTurn(phaseID: string): TurnConfig | undefined {
 		return _.find(this.game.turns, (turn) => turn.phases.includes(phaseID));
 	}

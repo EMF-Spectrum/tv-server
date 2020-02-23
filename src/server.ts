@@ -5,13 +5,14 @@ import _ from "lodash";
 import util from "util";
 import ws from "ws";
 import { SpectrumServer } from "./game";
+const NUM_TURNS = 7;
 
 function main() {
 	let ews = expressWS(express());
 	let app = ews.app;
 
 	// TODO save/load
-	let server = new SpectrumServer(SpectrumServer.createGame(7));
+	let server = new SpectrumServer(SpectrumServer.createGame(NUM_TURNS));
 	setInterval(() => server.emitHeartbeat(), 1000);
 	setInterval(() => server.tick(), 10);
 
@@ -102,6 +103,10 @@ function main() {
 	});
 	api.post("/setPhase", (req, res) => {
 		server.setPhase(req.body.phaseID);
+		res.sendStatus(http.NO_CONTENT);
+	});
+	api.post("/newGame", (req, res) => {
+		server.newGame(SpectrumServer.createGame(NUM_TURNS));
 		res.sendStatus(http.NO_CONTENT);
 	});
 
