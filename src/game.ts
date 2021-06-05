@@ -8,7 +8,7 @@ import {
 } from "@web/types/data";
 import { EventEmitter } from "events";
 import _ from "lodash";
-import uuid from "uuid/v4";
+import { v4 as uuid } from "uuid";
 
 const MINUTES = 60 * 1000;
 
