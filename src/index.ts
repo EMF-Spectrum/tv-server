@@ -4,7 +4,9 @@ import http from "http-status-codes";
 import _ from "lodash";
 import util from "util";
 import ws from "ws";
+import { SpectrumGame } from "./game";
 import { SpectrumServer } from "./game-server";
+
 const NUM_TURNS = 7;
 
 function main() {
@@ -12,7 +14,7 @@ function main() {
 	let app = ews.app;
 
 	// TODO save/load
-	let server = new SpectrumServer(SpectrumServer.createGame(NUM_TURNS));
+	let server = new SpectrumServer(new SpectrumGame(NUM_TURNS));
 	setInterval(() => server.emitHeartbeat(), 1000);
 	setInterval(() => server.tick(), 10);
 
@@ -106,7 +108,7 @@ function main() {
 		res.sendStatus(http.NO_CONTENT);
 	});
 	api.post("/newGame", (req, res) => {
-		server.newGame(SpectrumServer.createGame(NUM_TURNS));
+		server.newGame(new SpectrumGame(NUM_TURNS));
 		res.sendStatus(http.NO_CONTENT);
 	});
 

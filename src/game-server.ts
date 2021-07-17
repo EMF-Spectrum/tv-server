@@ -1,472 +1,289 @@
-import {
-	APIPhase,
-	HeartbeatEvent,
-	PhaseConfig,
-	SavedGame,
-	TimerStatus,
-	TurnConfig,
-} from "@web/types/data";
+import { PhaseConfig, SavedGame, TurnConfig } from "@web/types/data";
 import { EventEmitter } from "events";
-import _ from "lodash";
-import { v4 as uuid } from "uuid";
+import { PhaseConstruct, SpectrumGame } from "./game";
 
-const MINUTES = 60 * 1000;
-
-type DefaultPhaseConfig = Omit<PhaseConfig, "id">;
-const DEFAULT_PHASES: DefaultPhaseConfig[] = [
-	{
-		label: "Team Time",
-		length: 10,
-	},
-	{
-		label: "Action Time",
-		length: 15,
-	},
-	{
-		label: "Diplomacy Time",
-		length: 10,
-	},
-	{
-		label: "Breaking News",
-		length: 10,
-	},
-	{
-		label: "End of Turn",
-		length: null,
-	},
-];
-
+// TODO: If there's more than one admin connected, editing turns etc won't propagate to them
 export class SpectrumServer extends EventEmitter {
-	constructor(private game: SavedGame) {
+	constructor(private game: SpectrumGame) {
 		super();
+		this.game = game;
 	}
 
-	public newGame(game: SavedGame) {
+	public newGame(game: SpectrumGame) {
 		this.game = game;
 		this.emitHeartbeat();
-	}
-
-	private findPhaseTurn(phaseID: string): TurnConfig | undefined {
-		return _.find(this.game.turns, (turn) => turn.phases.includes(phaseID));
-	}
-
-	private static createPhase(phase: DefaultPhaseConfig): PhaseConfig {
-		return {
-			id: uuid(),
-			label: phase.label,
-			length: phase.length ? phase.length * MINUTES : null,
-		};
-	}
-
-	private static createTurn(label: number): [TurnConfig, PhaseConfig[]] {
-		let phases: PhaseConfig[] = [];
-		for (let dp of DEFAULT_PHASES) {
-			phases.push(this.createPhase(dp));
-		}
-
-		return [
-			{
-				id: uuid(),
-				label,
-				phases: phases.map((p) => p.id),
-			},
-			phases,
-		];
-	}
-
-	public static createGame(turns: number): SavedGame {
-		let game: SavedGame = {
-			currentTurn: null,
-			currentPhase: null,
-			turnOrder: [],
-			phases: {},
-			turns: {},
-			terror: 1,
-			paused: false,
-			over: false,
-		};
-
-		for (let i = 1; i <= turns; i++) {
-			let [turn, phases] = this.createTurn(i);
-			let id = turn.id;
-			game.turnOrder.push(id);
-			game.turns[id] = turn;
-			for (let phase of phases) {
-				game.phases[phase.id] = phase;
-			}
-		}
-
-		return game;
 	}
 
 	public getSaveGame(): SavedGame {
 		return this.game;
 	}
 
-	private createTimerStatus(): TimerStatus {
-		let game = this.game;
-
-		if (game.paused) {
-			return {
-				state: "paused",
-				timeLeft: game.paused.timeLeft,
-			};
-		} else if (!game.currentPhase || !game.currentPhase.length) {
-			return { state: "hidden" };
-		}
-		return {
-			state: "running",
-			endTime: game.currentPhase.ends,
-		};
-	}
-
 	public emitHeartbeat(): void {
-		let game = this.game;
-
-		let turn = game.turns[game.currentTurn || ""];
-		let phaseLabel = "";
-		let phase = game.currentPhase;
-		if (phase) {
-			phaseLabel = game.phases[phase.id].label;
-		}
-		let beat: HeartbeatEvent = {
-			turn: turn ? turn.label : 0,
-			phase: phaseLabel,
-			timer: this.createTimerStatus(),
-			terror: game.terror,
-		};
-		this.emit("heartbeat", beat);
-	}
-
-	public getGamePhases(): APIPhase[] {
-		return _.map(this.game.phases, (p) => _.pick(p, "id", "label"));
+		this.emit("heartbeat", this.game.getHeartbeat());
 	}
 
 	private nextTurn(): void {
 		let game = this.game;
-		if (game.over) return;
-		let pos = game.turnOrder.indexOf(game.currentTurn || "FIRST TURN") + 1;
+		let nextTurnID = game.getNextTurn();
 
-		if (pos >= game.turnOrder.length) {
-			this.emit("gameOver");
-			this.game.over = true;
+		if (!nextTurnID) {
+			this.endGame();
 			return;
 		}
 
-		game.currentTurn = game.turnOrder[pos];
-		this.emit("turnChange", game.currentTurn);
+		this.game.setTurn(nextTurnID);
+
+		this.emitTurnChange();
+		this.emitHeartbeat();
 	}
 
 	private nextPhase(): void {
 		let game = this.game;
-		if (game.over) return;
-		let turn = game.turns[game.currentTurn!];
-		if (!turn) {
-			throw new Error("No turn?");
-		}
-		let lastPhase = "FIRST PHASE";
-		if (game.currentPhase) {
-			lastPhase = game.currentPhase.id;
-		}
 
-		let pos = turn.phases.indexOf(lastPhase || "FIRST PHASE") + 1;
-		if (pos >= turn.phases.length) {
+		let nextPhaseID = game.getNextPhase();
+
+		if (!nextPhaseID) {
 			this.nextTurn();
-			return this.nextPhase();
+			return;
 		}
-		let id = turn.phases[pos];
-		let { length } = game.phases[id];
-		let now = Date.now();
 
-		game.currentPhase = {
-			id,
-			length,
-			started: now,
-			ends: length ? now + length : Infinity,
-		};
-		this.emit("phaseChange", game.currentPhase);
+		this.game.setPhase(nextPhaseID);
 
-		if (game.paused) {
-			game.paused.timeLeft = length ? length : -1;
-		}
+		this.emitPhaseChange();
+		this.emitHeartbeat();
 	}
 
+	// api method
 	public startGame(): void {
-		let game = this.game;
-		if (game.over) {
-			throw new Error("Game over man, game over!");
-		} else if (game.currentPhase) {
-			throw new Error("Game already started?");
+		if (this.game.isRunning()) {
+			throw new Error("Cannot start already running game");
+		} else if (this.game.over) {
+			throw new Error("Can't (yet) restart ended game");
 		}
-		this.nextTurn();
-		this.nextPhase();
+
+		this.game.startGame();
+		this.emitTurnChange();
 		this.emitHeartbeat();
 	}
 
+	// api method
 	public pause(): void {
+		this.checkGameState();
 		let game = this.game;
-		if (game.over) {
-			throw new Error("Game over man, game over!");
-		} else if (!game.currentPhase) {
-			throw new Error("Game not running?");
-		} else if (game.paused) {
-			throw new Error("Game already paused?");
+		if (game.paused) {
+			throw new Error("Game is already paused");
 		}
-		let timeLeft = -1;
-		if (game.currentPhase.length != null) {
-			timeLeft = game.currentPhase.ends - Date.now();
-		}
-		game.paused = {
-			timeLeft,
-		};
+
+		game.pause();
+
 		this.emitHeartbeat();
 	}
 
+	// api method
 	public unpause(): void {
+		this.checkGameState();
 		let game = this.game;
-		if (game.over) {
-			throw new Error("Game over man, game over!");
-		} else if (!game.currentPhase) {
-			throw new Error("Game not running?");
-		} else if (!game.paused) {
-			throw new Error("Game not paused?");
+		if (!game.paused) {
+			throw new Error("Game is not paused");
 		}
-		let { timeLeft } = game.paused;
-		if (timeLeft != -1 && game.currentPhase.length != null) {
-			let now = Date.now();
-			game.currentPhase.started =
-				now - (game.currentPhase.length - timeLeft);
-			game.currentPhase.ends = now + timeLeft;
+
+		game.unpause();
+
+		if (game.isCurrentPhaseOver()) {
+			this.nextPhase();
+		} else {
+			this.emitHeartbeat();
 		}
-		game.paused = false;
-		this.tick();
-		this.emitHeartbeat();
 	}
 
 	public tick() {
 		let game = this.game;
-		if (game.over || game.paused || !game.currentPhase) {
-			return;
-		}
-		let now = Date.now();
-		let phase = game.currentPhase;
-		if (phase.ends < now) {
+		if (game.isRunning() && game.isCurrentPhaseOver()) {
 			this.nextPhase();
+		}
+	}
+
+	// api method
+	public setTerror(terror: number): void {
+		this.checkGameState();
+		if (terror < 1 || terror > 250) {
+			throw new Error("Invalid terror!");
+		}
+
+		let game = this.game;
+		game.terror = terror;
+
+		if (terror == 250) {
+			this.endGame();
+		} else {
 			this.emitHeartbeat();
 		}
 	}
 
-	public setTerror(terror: number): void {
-		let game = this.game;
-		if (game.over) {
-			throw new Error("Game over man, game over!");
-		} else if (!game.currentPhase) {
-			throw new Error("Game not running?");
-		} else if (terror < 1 || terror > 250) {
-			throw new Error("Invalid terror!");
-		}
-
-		game.terror = terror;
-		this.emitHeartbeat();
-		if (terror == 250) {
-			this.emit("gameOver");
-			game.over = true;
-		}
-	}
-
+	// api method
 	public addTerror(amount: number): void {
 		this.setTerror(this.game.terror + amount);
 	}
 
+	// api method
 	public newPhase(
 		turnID: string,
-		phaseConfig: DefaultPhaseConfig,
+		phaseConfig: PhaseConstruct,
 	): [TurnConfig, PhaseConfig] {
 		let game = this.game;
-		if (game.over) {
-			throw new Error("Game over man, game over!");
-		}
-		let turn = game.turns[turnID];
-		if (!turn) {
-			throw new Error("Invalid turn!");
-		}
-		let phase = SpectrumServer.createPhase(phaseConfig);
-		game.phases[phase.id] = phase;
+		let turn = game.getTurn(turnID);
+
+		let phaseID = game.createPhase(phaseConfig);
+
+		let phase = game.getPhase(phaseID);
 		turn.phases.push(phase.id);
 		return [turn, phase];
 	}
 
+	// api method
 	public editPhase(
 		phaseID: string,
-		phaseConfig: DefaultPhaseConfig,
+		phaseConfig: PhaseConstruct,
 	): PhaseConfig {
 		let game = this.game;
-		if (game.over) {
-			throw new Error("Game over man, game over!");
-		}
-		let phase = game.phases[phaseID];
-		if (!phase) {
-			throw new Error("Invalid phase!");
-		}
-		phase.label = phaseConfig.label;
-		phase.length = phaseConfig.length;
-		if (
-			game.currentPhase &&
-			game.currentPhase.id == phase.id &&
-			game.currentPhase.length != phase.length
-		) {
-			let cp = game.currentPhase;
-			if (!phase.length) {
-				cp.ends = Infinity;
-			} else if (!cp.length) {
-				cp.ends = cp.started + phase.length;
+
+		let currentChanged = game.editPhase(phaseID, phaseConfig);
+
+		if (currentChanged) {
+			// It's possible the length of the current phase was reduced so it
+			//  is now over, so handle that
+			if (game.isCurrentPhaseOver()) {
+				this.nextPhase();
 			} else {
-				cp.ends += phase.length - cp.length;
+				this.emitHeartbeat();
 			}
-			cp.length = phase.length;
-			// Update the timer on the client
-			this.emitHeartbeat();
-			// Check to see if we've just made the current phase so short it
-			//  should end immediately.
-			// This may emit another heartbeat but I don't care right now
-			this.tick();
 		}
-		return phase;
+
+		return game.getPhase(phaseID);
 	}
 
+	// api method
 	public reorderTurnPhases(turnID: string, phases: string[]): TurnConfig {
 		let game = this.game;
-		if (game.over) {
-			throw new Error("Game over man, game over!");
+
+		let turn = game.getTurn(turnID);
+
+		if (turn.phases.length != phases.length) {
+			throw new Error("Provided phases don't match existing phases");
 		}
-		let turn = game.turns[turnID];
-		if (!turn) {
-			throw new Error("Invalid turn!");
+		for (let phase of phases) {
+			if (!turn.phases.includes(phase)) {
+				throw new Error("Provided phases don't match existing phases");
+			}
 		}
+
 		turn.phases = phases;
+
 		return turn;
 	}
 
+	// api method
 	public bumpPhase(phaseID: string, direction: string): TurnConfig {
-		let game = this.game;
-		if (game.over) {
-			throw new Error("Game over man, game over!");
-		} else if (direction != "up" && direction != "down") {
+		if (direction != "up" && direction != "down") {
 			throw new Error("Invalid direction?");
-		} else if (!(phaseID in game.phases)) {
-			throw new Error("Unknown phase?");
 		}
-		let turn = this.findPhaseTurn(phaseID);
-		if (!turn) {
-			throw new Error("Phase is not attached to a turn??");
-		}
+		let game = this.game;
+		let turn = game.getTurnByPhase(phaseID);
+
 		let idx = turn.phases.indexOf(phaseID);
 		if (
 			(idx == 0 && direction == "up") ||
 			(idx == turn.phases.length - 1 && direction == "down")
 		) {
-			console.log("NOPE");
 			// Don't move things past their movement point
 			return turn;
 		}
+
 		turn.phases.splice(idx, 1);
+
 		if (direction == "up") {
 			turn.phases.splice(idx - 1, 0, phaseID);
 		} else {
 			turn.phases.splice(idx + 1, 0, phaseID);
 		}
+
 		return turn;
 	}
 
+	// api method
 	public newTurn(): [TurnConfig, PhaseConfig[]] {
 		let game = this.game;
-		if (game.over) {
-			throw new Error("Game over man, game over!");
-		}
-		let [turn, phases] = SpectrumServer.createTurn(
-			game.turnOrder.length + 1,
-		);
-		let id = turn.id;
-		game.turnOrder.push(id);
-		game.turns[id] = turn;
-		for (let phase of phases) {
-			game.phases[phase.id] = phase;
-		}
+
+		let turnID = game.createTurn(game.turnOrder.length + 1);
+
+		game.turnOrder.push(turnID);
+
+		let turn = game.getTurn(turnID);
+		let phases = turn.phases.map((phaseID) => game.getPhase(phaseID));
+
 		return [turn, phases];
 	}
 
+	// api method
 	public advanceTurn(): void {
-		let game = this.game;
-		if (game.over) {
-			throw new Error("Game over man, game over!");
-		} else if (!game.currentPhase) {
-			throw new Error("Game not running?");
-		}
+		this.checkGameState();
 		this.nextTurn();
-		this.emitHeartbeat();
 	}
 
+	// api method
 	public setTurn(turnID: string): void {
+		this.checkGameState();
 		let game = this.game;
-		if (game.over) {
-			throw new Error("Game over man, game over!");
-		} else if (!game.currentPhase) {
-			throw new Error("Game not running?");
-		} else if (!(turnID in game.turns)) {
-			throw new Error("Invalid turn!");
-		}
 
-		// Restart the turn
-		if (turnID == game.currentTurn) {
-			game.currentPhase = null;
-		} else {
-			game.currentTurn = turnID;
-		}
-		this.nextPhase();
-	}
+		game.setTurn(turnID);
 
-	public advancePhase(): void {
-		let game = this.game;
-		if (game.over) {
-			throw new Error("Game over man, game over!");
-		} else if (!game.currentPhase) {
-			throw new Error("Game not running?");
-		}
-		this.nextPhase();
-	}
-
-	public setPhase(phaseID: string): void {
-		let game = this.game;
-		if (game.over) {
-			throw new Error("Game over man, game over!");
-		} else if (!(phaseID in game.phases)) {
-			throw new Error("Unknown phase?");
-		}
-		let turn = this.findPhaseTurn(phaseID);
-		if (!turn) {
-			throw new Error("Phase is not attached to a turn??");
-		}
-
-		if (turn.id != game.currentTurn) {
-			game.currentTurn = turn.id;
-			this.emit("turnChange", game.currentTurn);
-		}
-
-		let { length } = game.phases[phaseID];
-		let now = Date.now();
-
-		game.currentPhase = {
-			id: phaseID,
-			length,
-			started: now,
-			ends: length ? now + length : Infinity,
-		};
-		this.emit("phaseChange", game.currentPhase);
-
-		if (game.paused) {
-			game.paused.timeLeft = length ? length : -1;
-		}
-
+		this.emitTurnChange();
 		this.emitHeartbeat();
+	}
+
+	// api method
+	public advancePhase(): void {
+		this.checkGameState();
+		this.nextPhase();
+	}
+
+	// api method
+	public setPhase(phaseID: string): void {
+		this.checkGameState();
+		let game = this.game;
+
+		let currentTurn = this.game.getCurrentTurn();
+		let targetTurn = this.game.getTurnByPhase(phaseID);
+
+		if (currentTurn.id == targetTurn.id) {
+			game.setPhase(phaseID);
+		} else {
+			game.setTurn(targetTurn.id, phaseID);
+		}
+
+		this.emitPhaseChange();
+		this.emitHeartbeat();
+	}
+
+	// Helper methods that are only here because git diff freaks out otherwise
+
+	private endGame() {
+		this.game.over = true;
+		this.emit("gameOver");
+	}
+
+	private checkGameState() {
+		if (!this.game.isRunning()) {
+			throw new Error("Game is not running");
+		}
+	}
+
+	private emitTurnChange(): void {
+		this.emit("turnChange", this.game.getCurrentTurn().id);
+		this.emitPhaseChange();
+	}
+
+	private emitPhaseChange(): void {
+		this.emit("phaseChange", this.game.getCurrentPhase());
 	}
 }
