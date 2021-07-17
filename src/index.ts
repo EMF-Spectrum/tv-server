@@ -4,7 +4,7 @@ import http from "http-status-codes";
 import _ from "lodash";
 import util from "util";
 import ws from "ws";
-import { SpectrumServer } from "./game";
+import { SpectrumServer } from "./game-server";
 const NUM_TURNS = 7;
 
 function main() {

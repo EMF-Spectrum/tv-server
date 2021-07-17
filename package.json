@@ -1,11 +1,11 @@
 {
   "name": "tv-server",
   "version": "1.0.0",
-  "main": "src/server.ts",
+  "main": "src/index.ts",
   "author": "Lex Robinson <lex@lex.me.uk>",
   "license": "GPL-3.0",
   "scripts": {
-    "start": "tsnd --respawn --transpile-only src/server.ts"
+    "start": "tsnd --respawn --transpile-only src/index.ts"
   },
   "dependencies": {
     "express": "^4.17.1",
