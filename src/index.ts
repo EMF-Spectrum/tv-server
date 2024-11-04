@@ -1,11 +1,13 @@
+import util from "node:util";
+
 import express from "express";
 import expressWS from "express-ws";
 import http from "http-status-codes";
 import _ from "lodash";
-import util from "util";
 import ws from "ws";
-import { SpectrumGame } from "./game";
-import { SpectrumServer } from "./game-server";
+
+import { SpectrumGame } from "@/game";
+import { SpectrumServer } from "@/game-server";
 
 const NUM_TURNS = 7;
 

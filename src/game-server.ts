@@ -1,6 +1,7 @@
+import { EventEmitter } from "node:events";
+
+import { PhaseConstruct, SpectrumGame } from "@/game";
 import { PhaseConfig, SavedGame, TurnConfig } from "@web/types/data";
-import { EventEmitter } from "events";
-import { PhaseConstruct, SpectrumGame } from "./game";
 
 // TODO: If there's more than one admin connected, editing turns etc won't propagate to them
 export class SpectrumServer extends EventEmitter {

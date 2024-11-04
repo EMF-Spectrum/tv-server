@@ -1,3 +1,6 @@
+import _ from "lodash";
+import { v4 as uuid } from "uuid";
+
 import {
 	CurrentPhaseData,
 	HeartbeatEvent,
@@ -6,8 +9,6 @@ import {
 	TimerStatus,
 	TurnConfig,
 } from "@web/types/data";
-import _ from "lodash";
-import { v4 as uuid } from "uuid";
 
 const MINUTES = 60 * 1000;
 
