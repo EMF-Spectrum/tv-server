@@ -2,7 +2,8 @@
   "name": "tv-server",
   "version": "1.0.0",
   "main": "src/index.ts",
-  "author": "Lex Robinson <lex@lex.me.uk>",
+  "private": true,
+  "author": "EMF Spectrum Team",
   "license": "GPL-3.0",
   "scripts": {
     "start": "tsx watch src/index.ts"
