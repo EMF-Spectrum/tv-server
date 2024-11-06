@@ -23,37 +23,6 @@ export class SpectrumServer extends EventEmitter {
 		this.emit("heartbeat", this.game.getHeartbeat());
 	}
 
-	private nextTurn(): void {
-		let game = this.game;
-		let nextTurnID = game.getNextTurn();
-
-		if (!nextTurnID) {
-			this.endGame();
-			return;
-		}
-
-		this.game.setTurn(nextTurnID);
-
-		this.emitTurnChange();
-		this.emitHeartbeat();
-	}
-
-	private nextPhase(): void {
-		let game = this.game;
-
-		let nextPhaseID = game.getNextPhase();
-
-		if (!nextPhaseID) {
-			this.nextTurn();
-			return;
-		}
-
-		this.game.setPhase(nextPhaseID);
-
-		this.emitPhaseChange();
-		this.emitHeartbeat();
-	}
-
 	// api method
 	public startGame(): void {
 		if (this.game.isRunning()) {
@@ -266,7 +235,7 @@ export class SpectrumServer extends EventEmitter {
 		this.emitHeartbeat();
 	}
 
-	// Helper methods that are only here because git diff freaks out otherwise
+	// Helper methods
 
 	private endGame() {
 		this.game.over = true;
@@ -286,5 +255,36 @@ export class SpectrumServer extends EventEmitter {
 
 	private emitPhaseChange(): void {
 		this.emit("phaseChange", this.game.getCurrentPhase());
+	}
+
+	private nextTurn(): void {
+		let game = this.game;
+		let nextTurnID = game.getNextTurn();
+
+		if (!nextTurnID) {
+			this.endGame();
+			return;
+		}
+
+		this.game.setTurn(nextTurnID);
+
+		this.emitTurnChange();
+		this.emitHeartbeat();
+	}
+
+	private nextPhase(): void {
+		let game = this.game;
+
+		let nextPhaseID = game.getNextPhase();
+
+		if (!nextPhaseID) {
+			this.nextTurn();
+			return;
+		}
+
+		this.game.setPhase(nextPhaseID);
+
+		this.emitPhaseChange();
+		this.emitHeartbeat();
 	}
 }
