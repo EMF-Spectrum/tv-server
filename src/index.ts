@@ -27,8 +27,16 @@ import ws from "ws";
 
 import { SpectrumGame } from "@/game";
 import { SpectrumServer } from "@/game-server";
+import { SocketEvents } from "@web/types/data";
 
 const NUM_TURNS = 7;
+
+const EVENTS_TO_FORWARD: (keyof SocketEvents)[] = [
+	"heartbeat",
+	"gameOver",
+	"phaseChange",
+	"turnChange",
+];
 
 function main() {
 	let ews = expressWS(express());
@@ -39,7 +47,7 @@ function main() {
 	setInterval(() => server.emitHeartbeat(), 1000);
 	setInterval(() => server.tick(), 10);
 
-	function forwardEvent(sock: ws, type: string) {
+	function forwardEvent(sock: ws, type: keyof SocketEvents) {
 		let handler = (data: unknown) =>
 			sock.send(JSON.stringify({ type, data }));
 		server.on(type, handler);
@@ -48,10 +56,9 @@ function main() {
 
 	app.ws("/socket", (sock) => {
 		console.log("Got a websocket connection!");
-		forwardEvent(sock, "heartbeat");
-		forwardEvent(sock, "gameOver");
-		forwardEvent(sock, "phaseChange");
-		forwardEvent(sock, "turnChange");
+		for (let event of EVENTS_TO_FORWARD) {
+			forwardEvent(sock, event);
+		}
 		server.emitHeartbeat();
 	});
 

@@ -20,10 +20,17 @@
 import { EventEmitter } from "node:events";
 
 import { PhaseConstruct, SpectrumGame } from "@/game";
-import { PhaseConfig, SavedGame, TurnConfig } from "@web/types/data";
+import {
+	PhaseConfig,
+	SavedGame,
+	SpectrumGameEventEmitter,
+	TurnConfig,
+} from "@web/types/data";
 
 // TODO: If there's more than one admin connected, editing turns etc won't propagate to them
-export class SpectrumServer extends EventEmitter {
+export class SpectrumServer extends (EventEmitter as {
+	new (): SpectrumGameEventEmitter;
+}) {
 	constructor(private game: SpectrumGame) {
 		super();
 		this.game = game;
