@@ -1,37 +1,37 @@
 {
-    "compilerOptions": {
-        /* Basic Options */
-        "incremental": true,
-        "target": "es2022",
-        "module": "ES2022",
-        "sourceMap": true,
-        "strict": true,
-        "noImplicitAny": true,
-        "strictNullChecks": true,
-        "strictFunctionTypes": true,
-        "strictBindCallApply": true,
-        "strictPropertyInitialization": true,
-        "noImplicitThis": true,
-        "alwaysStrict": true,
+  "compilerOptions": {
+    /* Basic Options */
+    "incremental": true,
+    "target": "es2022",
+    "module": "ES2022",
+    "sourceMap": true,
+    "strict": true,
+    "noImplicitAny": true,
+    "strictNullChecks": true,
+    "strictFunctionTypes": true,
+    "strictBindCallApply": true,
+    "strictPropertyInitialization": true,
+    "noImplicitThis": true,
+    "alwaysStrict": true,
 
-        "baseUrl": "./",
-        "paths": {
-            "@/*": ["src/*"],
-            "@web/*": ["../tvs/src/*"],
-            "*": ["*"]
-        },
+    "baseUrl": "./",
+    "paths": {
+      "@/*": ["src/*"],
+      "@web/*": ["../tvs/src/*"],
+      "*": ["*"]
+    },
 
-        /* Additional Checks */
-        "noUnusedLocals": true,
-        "noUnusedParameters": false,
-        "noImplicitReturns": true,
-        "noFallthroughCasesInSwitch": true,
+    /* Additional Checks */
+    "noUnusedLocals": true,
+    "noUnusedParameters": false,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
 
-        /* Module Resolution Options */
-        "moduleResolution": "node",
-        "allowSyntheticDefaultImports": true,
-        "esModuleInterop": true,
-        "experimentalDecorators": true,
-        "emitDecoratorMetadata": true
-    }
+    /* Module Resolution Options */
+    "moduleResolution": "node",
+    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true,
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true
+  }
 }
