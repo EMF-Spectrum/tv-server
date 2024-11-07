@@ -27,7 +27,6 @@ import {
 	TurnConfig,
 } from "@web/types/data";
 
-// TODO: If there's more than one admin connected, editing turns etc won't propagate to them
 export class SpectrumServer extends (EventEmitter as {
 	new (): SpectrumGameEventEmitter;
 }) {
@@ -133,6 +132,8 @@ export class SpectrumServer extends (EventEmitter as {
 
 		let phase = game.getPhase(phaseID);
 		turn.phases.push(phase.id);
+		this.emitPhaseEdit(phase);
+		this.emitTurnEdit(turn);
 		return [turn, phase];
 	}
 
@@ -155,7 +156,9 @@ export class SpectrumServer extends (EventEmitter as {
 			}
 		}
 
-		return game.getPhase(phaseID);
+		let phase = game.getPhase(phaseID);
+		this.emitPhaseEdit(phase);
+		return phase;
 	}
 
 	// api method
@@ -174,7 +177,7 @@ export class SpectrumServer extends (EventEmitter as {
 		}
 
 		turn.phases = phases;
-
+		this.emitTurnEdit(turn);
 		return turn;
 	}
 
@@ -203,6 +206,7 @@ export class SpectrumServer extends (EventEmitter as {
 			turn.phases.splice(idx + 1, 0, phaseID);
 		}
 
+		this.emitTurnEdit(turn);
 		return turn;
 	}
 
@@ -216,6 +220,12 @@ export class SpectrumServer extends (EventEmitter as {
 
 		let turn = game.getTurn(turnID);
 		let phases = turn.phases.map((phaseID) => game.getPhase(phaseID));
+
+		for (let phase of phases) {
+			this.emitPhaseEdit(phase);
+		}
+		this.emitTurnEdit(turn);
+		this.emitTurnOrderEdit(game.turnOrder);
 
 		return [turn, phases];
 	}
@@ -281,6 +291,18 @@ export class SpectrumServer extends (EventEmitter as {
 
 	private emitPhaseChange(): void {
 		this.emit("phaseChange", this.game.getCurrentPhase());
+	}
+
+	private emitTurnOrderEdit(turns: string[]): void {
+		this.emit("turnOrderEdit", turns);
+	}
+
+	private emitTurnEdit(turn: TurnConfig): void {
+		this.emit("turnEdit", turn);
+	}
+
+	private emitPhaseEdit(phase: PhaseConfig): void {
+		this.emit("phaseEdit", phase);
 	}
 
 	private nextTurn(): void {
