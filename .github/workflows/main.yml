@@ -13,5 +13,8 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Run npm CI
+        run: npm ci
+
       - name: Run pre-commit
         uses: pre-commit/action@v3.0.1
