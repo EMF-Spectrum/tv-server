@@ -98,28 +98,85 @@ function main() {
 		res.sendStatus(http.NO_CONTENT);
 	});
 	api.post("/newPhase", (req, res) => {
-		let [turn, phase] = server.newPhase(
-			req.body.turnID,
-			_.pick(req.body.phaseConfig, "label", "length"),
-		);
+		let turnID = req.body.turnID;
+		if (!_.isString(turnID) || turnID == "__proto__") {
+			res.status(400).json({ error: "Invalid turnID" });
+			return;
+		}
+		let phaseConfig = req.body.phaseConfig;
+		if (!_.isPlainObject(phaseConfig)) {
+			res.status(400).json({ error: "Invalid phaseConfig" });
+			return;
+		}
+		let label = phaseConfig.label;
+		if (!_.isString(label) || label == "") {
+			res.status(400).json({ error: "Invalid phaseConfig.label" });
+			return;
+		}
+		let length = phaseConfig.length;
+		if (!(length === null || (_.isNumber(length) && length > 0))) {
+			res.status(400).json({ error: "Invalid phaseConfig.length" });
+			return;
+		}
+
+		let [turn, phase] = server.newPhase(turnID, { label, length });
 		res.status(http.OK).json({ turn, phase });
 	});
 	api.post("/editPhase", (req, res) => {
-		let phase = server.editPhase(
-			req.body.phaseID,
-			_.pick(req.body.phaseConfig, "label", "length"),
-		);
+		let phaseID = req.body.phaseID;
+		if (!_.isString(phaseID) || phaseID == "__proto__") {
+			res.status(400).json({ error: "Invalid phaseID" });
+			return;
+		}
+		let phaseConfig = req.body.phaseConfig;
+		if (!_.isPlainObject(phaseConfig)) {
+			res.status(400).json({ error: "Invalid phaseConfig" });
+			return;
+		}
+		let label = phaseConfig.label;
+		if (!_.isString(label) || label == "") {
+			res.status(400).json({ error: "Invalid phaseConfig.label" });
+			return;
+		}
+		let length = phaseConfig.length;
+		if (!(length === null || (_.isNumber(length) && length > 0))) {
+			console.error("fucky length", length);
+			res.status(400).json({ error: "Invalid phaseConfig.length" });
+			return;
+		}
+
+		let phase = server.editPhase(phaseID, { label, length });
 		res.status(http.OK).json(phase);
 	});
 	api.post("/reorderTurnPhases", (req, res) => {
-		let turn = server.reorderTurnPhases(
-			req.body.turnID,
-			_.map(req.body.phases, _.toString),
-		);
+		let turnID = req.body.turnID;
+		if (!_.isString(turnID) || turnID == "__proto__") {
+			res.status(400).json({ error: "Invalid turnID" });
+			return;
+		}
+		let phases = req.body.phases;
+		if (!_.isArray(phases) || phases.length > 50) {
+			res.status(400).json({ error: "Invalid phases" });
+			return;
+		}
+		let turn = server.reorderTurnPhases(turnID, phases.map(_.toString));
 		res.status(http.OK).json(turn);
 	});
 	api.post("/bumpPhase", (req, res) => {
-		let turn = server.bumpPhase(req.body.phaseID, req.body.direction);
+		let phaseID = req.body.phaseID;
+		if (!_.isString(phaseID) || phaseID == "__proto__") {
+			res.status(400).json({ error: "Invalid phaseID" });
+			return;
+		}
+		let direction = req.body.direction;
+		if (
+			!_.isString(direction) ||
+			(direction != "up" && direction != "down")
+		) {
+			res.status(400).json({ error: "Invalid direction" });
+			return;
+		}
+		let turn = server.bumpPhase(phaseID, direction);
 		res.status(http.OK).json(turn);
 	});
 	api.post("/newTurn", (req, res) => {
