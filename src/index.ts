@@ -32,10 +32,13 @@ import { SocketEvents } from "@web/types/data";
 const NUM_TURNS = 7;
 
 const EVENTS_TO_FORWARD: (keyof SocketEvents)[] = [
-	"heartbeat",
 	"gameOver",
+	"heartbeat",
 	"phaseChange",
+	"phaseEdit",
 	"turnChange",
+	"turnEdit",
+	"turnOrderEdit",
 ];
 
 function main() {
