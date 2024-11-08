@@ -152,6 +152,7 @@ export class SpectrumServer extends (EventEmitter as {
 			if (game.isCurrentPhaseOver()) {
 				this.nextPhase();
 			} else {
+				this.emitPhaseChange();
 				this.emitHeartbeat();
 			}
 		}
