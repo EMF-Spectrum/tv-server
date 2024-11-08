@@ -1,0 +1,17 @@
+name: "Check code quality"
+on:
+  push:
+    branches:
+      - main
+      - master
+
+jobs:
+  pre-commit:
+    name: Pre-Commit
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run pre-commit
+        uses: pre-commit/action@v3.0.1
