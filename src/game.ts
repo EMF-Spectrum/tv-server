@@ -162,7 +162,7 @@ export class SpectrumGame implements SavedGame {
 	}
 
 	public startGame(): void {
-		this.terror = 1;
+		this.terror = 0;
 		this.setTurn(this.turnOrder[0]);
 	}
 

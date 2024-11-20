@@ -101,14 +101,14 @@ export class SpectrumServer extends (EventEmitter as {
 	// api method
 	public setTerror(terror: number): void {
 		this.checkGameState();
-		if (terror < 1 || terror > 250) {
+		if (terror < 0 || terror > 100) {
 			throw new Error("Invalid terror!");
 		}
 
 		let game = this.game;
 		game.terror = terror;
 
-		if (terror == 250) {
+		if (terror == 100) {
 			this.endGame();
 		} else {
 			this.emitHeartbeat();
